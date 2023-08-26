@@ -3,61 +3,63 @@ import SlimSelect from 'slim-select';
 import 'slim-select/dist/slimselect.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const elements = {
-  selectEl: document.querySelector('.breed-select'),
-  textMarkEl: document.querySelector('.cat-info'),
-  loaderEl: document.querySelector('.loader'),
-  errorEl: document.querySelector('.error'),
-};
+const breedSelect = document.querySelector('.breed-select');
+const catInfo = document.querySelector('.cat-info');
+const loader = document.querySelector('.loader');
+const error = document.querySelector('.error');
 
-const { selectEl, textMarkEl, loaderEl, errorEl } = elements;
+error.classList.add('is-hidden');
+breedSelect.classList.add('is-hidden');
 
-textMarkEl.classList.add('is-hidden');
+fetchBreeds()
+  .then(data => {
+    breedSelect.classList.remove('is-hidden');
+    loader.classList.add('is-hidden');
 
-selectEl.addEventListener('change', createMarkUp);
+    const markup = data
+      .map(({ id, name }) => `<option value="${id}">${name}</option>`)
+      .join('');
+    breedSelect.innerHTML = markup;
+    new SlimSelect({
+      select: breedSelect,
+    });
+  })
+  .catch(err => {
+    console.error(err);
+    loader.classList.add('is-hidden');
+    Notify.failure(error.textContent);
+  });
 
-updateSelect();
+breedSelect.addEventListener('change', setOutput);
 
-function updateSelect(data) {
-  fetchBreeds(data)
+function setOutput(evt) {
+  catInfo.classList.add('is-hidden');
+  loader.classList.remove('is-hidden');
+  error.classList.add('is-hidden');
+
+  fetchCatByBreed(evt.currentTarget.value)
     .then(data => {
-      loaderEl.classList.replace('loader', 'is-hidden');
+      catInfo.classList.remove('is-hidden');
+      loader.classList.add('is-hidden');
 
-      let markSelect = data.map(({ name, id }) => {
-        return `<option value ='${id}'>${name}</option>`;
-      });
-      selectEl.insertAdjacentHTML('beforeend', markSelect);
-      new SlimSelect({
-        select: selectEl,
-      });
+      const markup = data
+        .map(
+          ({
+            url,
+            breeds: [{ name, description, temperament }],
+          }) => `<img src="${url}" alt="${name}" width='300px'>
+          <div class="box">
+          <h2>${name}</h2>
+          <p>${description}</p>
+          <p><b>Temperament:</b> ${temperament}</p>
+          </div>`
+        )
+        .join('');
+      catInfo.innerHTML = markup;
     })
-    .catch(onFetchError);
-}
-
-function createMarkUp(event) {
-  loaderEl.classList.replace('is-hidden', 'loader');
-  selectEl.classList.add('is-hidden');
-  textMarkEl.classList.add('is-hidden');
-
-  const breedId = event.currentTarget.value;
-
-  fetchCatByBreed(breedId)
-    .then(data => {
-      loaderEl.classList.replace('loader', 'is-hidden');
-      selectEl.classList.remove('is-hidden');
-      const { url, breeds } = data[0];
-
-      textMarkEl.innerHTML = `<img src="${url}" alt="${breeds[0].name}" width="400"/><div class="box"><h2>${breeds[0].name}</h2><p>${breeds[0].description}</p><p><strong>Temperament:</strong> ${breeds[0].temperament}</p></div>`;
-      textMarkEl.classList.remove('is-hidden');
-    })
-    .catch(onFetchError);
-}
-
-function onFetchError() {
-  selectEl.classList.remove('is-hidden');
-  loaderEl.classList.replace('loader', 'is-hidden');
-
-  Notify.failure(
-    'Oops! Something went wrong! Try reloading the page or select another cat breed!'
-  );
+    .catch(err => {
+      console.error(err);
+      loader.classList.add('is-hidden');
+      Notify.failure(error.textContent);
+    });
 }
